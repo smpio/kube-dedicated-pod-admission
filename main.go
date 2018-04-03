@@ -3,6 +3,7 @@ package main
 import (
     "log"
     "flag"
+    "strings"
     "net/http"
     "io/ioutil"
     "crypto/tls"
@@ -18,11 +19,6 @@ import (
     "k8s.io/client-go/rest"
 )
 
-// TODO: smp.io/dedicated (add option for this)
-const taintName string = "dedicated"
-const labelName string = "dedicated"
-const nsAnnotation string = "smp.io/force-dedicated-nodes"
-
 type operation struct {
     Op     string      `json:"op"`
     Path   string      `json:"path"`
@@ -31,6 +27,9 @@ type operation struct {
 
 var scheme = runtime.NewScheme()
 var codecs = serializer.NewCodecFactory(scheme)
+var taintName string = "smp.io/dedicated"
+var labelName string = "smp.io/dedicated"
+var nsAnnotation string = "smp.io/force-dedicated-nodes"
 
 func init() {
     corev1.AddToScheme(scheme)
@@ -46,6 +45,12 @@ func main() {
         "after server cert).")
     flag.StringVar(&KeyFile, "tls-key-file", KeyFile, ""+
         "File containing the default x509 private key matching --tls-cert-file.")
+    flag.StringVar(&taintName, "node-taint-key", taintName, ""+
+        "Pod tolerations will be created with this key.")
+    flag.StringVar(&labelName, "node-label-name", labelName, ""+
+        "This will be used as pod nodeSelector key.")
+    flag.StringVar(&nsAnnotation, "namespace-annotation", nsAnnotation, ""+
+        "Which namespace annotation will be read to force nodeSelector.")
     flag.Parse()
 
     http.HandleFunc("/", mkServe(getClient()))
@@ -202,7 +207,7 @@ func makePatch(pod *corev1.Pod, namespace string, clientset *kubernetes.Clientse
     } else {
         ops = append(ops, &operation{
             Op: "add",
-            Path: "/spec/nodeSelector/" + labelName,
+            Path: "/spec/nodeSelector/" + strings.Replace(strings.Replace(labelName, "~", "~0", -1), "/", "~1", -1),
             Value: namespace,
         })
     }
