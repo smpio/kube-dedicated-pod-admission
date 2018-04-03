@@ -149,22 +149,17 @@ func admit(ar v1beta1.AdmissionReview, clientset *kubernetes.Clientset) *v1beta1
     reviewResponse := v1beta1.AdmissionResponse{}
     reviewResponse.Allowed = true
 
-    if label, ok := pod.Labels["run"]; ok {
-        if label == "to-be-mutated" {
-            operations := makePatch(&pod, ar.Request.Namespace, clientset)
-
-            if len(operations) != 0 {
-                patch, err := json.Marshal(operations)
-                if err != nil {
-                    log.Print(err)
-                    return toAdmissionResponse(err)
-                }
-
-                reviewResponse.Patch = patch
-                pt := v1beta1.PatchTypeJSONPatch
-                reviewResponse.PatchType = &pt
-            }
+    operations := makePatch(&pod, ar.Request.Namespace, clientset)
+    if len(operations) != 0 {
+        patch, err := json.Marshal(operations)
+        if err != nil {
+            log.Print(err)
+            return toAdmissionResponse(err)
         }
+
+        reviewResponse.Patch = patch
+        pt := v1beta1.PatchTypeJSONPatch
+        reviewResponse.PatchType = &pt
     }
 
     return &reviewResponse
