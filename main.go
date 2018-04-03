@@ -81,7 +81,6 @@ func mkServe(clientset *kubernetes.Clientset) func(http.ResponseWriter, *http.Re
                 body = data
             }
         }
-        log.Print(string(body))
 
         // verify the content type is accurate
         contentType := r.Header.Get("Content-Type")
@@ -161,7 +160,6 @@ func admit(ar v1beta1.AdmissionReview, clientset *kubernetes.Clientset) *v1beta1
                     return toAdmissionResponse(err)
                 }
 
-                log.Print(string(patch))
                 reviewResponse.Patch = patch
                 pt := v1beta1.PatchTypeJSONPatch
                 reviewResponse.PatchType = &pt
@@ -196,7 +194,6 @@ func makePatch(pod *corev1.Pod, namespace string, clientset *kubernetes.Clientse
         return ops
     }
 
-    log.Print(ns.Annotations)
     annotation, ok := ns.Annotations[nsAnnotation]
     if !ok || annotation != "true" {
         return ops
