@@ -30,7 +30,7 @@ var scheme = runtime.NewScheme()
 var codecs = serializer.NewCodecFactory(scheme)
 var taintName string = "smp.io/dedicated"
 var labelName string = "smp.io/dedicated"
-var nsAnnotation string = "smp.io/force-dedicated-nodes"
+var nsAnnotation string = "smp.io/only-dedicated-nodes"
 
 func init() {
     corev1.AddToScheme(scheme)
