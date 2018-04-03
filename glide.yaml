@@ -1,0 +1,11 @@
+package: github.com/smpio/kube-dedicated-pod-admission
+import:
+- package: k8s.io/apimachinery
+  subpackages:
+  - pkg/api/errors
+  - pkg/apis/meta/v1
+- package: k8s.io/client-go
+  version: ^6.0.0
+  subpackages:
+  - kubernetes
+  - rest
