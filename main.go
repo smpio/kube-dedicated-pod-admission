@@ -3,6 +3,7 @@ package main
 import (
     "log"
     "flag"
+    "strconv"
     "strings"
     "net/http"
     "io/ioutil"
@@ -174,11 +175,14 @@ func admit(ar v1beta1.AdmissionReview, clientset *kubernetes.Clientset) *v1beta1
 func makePatch(pod *corev1.Pod, namespace string, clientset *kubernetes.Clientset) []*operation {
     ops := []*operation{}
 
+    tolerationCount := len(pod.Spec.Tolerations)
     if !hasTolerationEffect(pod, corev1.TaintEffectNoExecute) {
-        ops = append(ops, makeTolerationOperation(corev1.TaintEffectNoExecute, namespace))
+        ops = append(ops, makeTolerationOperation(corev1.TaintEffectNoExecute, namespace, tolerationCount))
+        tolerationCount++
     }
     if !hasTolerationEffect(pod, corev1.TaintEffectNoSchedule) {
-        ops = append(ops, makeTolerationOperation(corev1.TaintEffectNoSchedule, namespace))
+        ops = append(ops, makeTolerationOperation(corev1.TaintEffectNoSchedule, namespace, tolerationCount))
+        tolerationCount++
     }
 
     _, ok := pod.Spec.NodeSelector[labelName]
@@ -225,10 +229,10 @@ func hasTolerationEffect(pod *corev1.Pod, effect corev1.TaintEffect) bool {
     return false
 }
 
-func makeTolerationOperation(effect corev1.TaintEffect, namespace string) *operation {
+func makeTolerationOperation(effect corev1.TaintEffect, namespace string, position int) *operation {
     return &operation{
         Op: "add",
-        Path: "/spec/tolerations/0",
+        Path: "/spec/tolerations/" + strconv.Itoa(position),
         Value: &corev1.Toleration{
             Effect: effect,
             Key: taintName,
