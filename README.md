@@ -1,4 +1,4 @@
-# kube-toleration-admission
+# kube-dedicated-pod-admission
 
 
 This is [Admission Webhook](https://kubernetes.io/docs/admin/extensible-admission-controllers/#admission-webhooks) that adds pod `tolerations` and optionally `nodeSelector`.
