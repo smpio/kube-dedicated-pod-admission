@@ -31,6 +31,8 @@ var codecs = serializer.NewCodecFactory(scheme)
 var nodeTaintKey = "smp.io/dedicated"
 var nodeLabelName = "smp.io/dedicated"
 var nsAnnotationOnlyDedicated = "smp.io/only-dedicated-nodes"
+var nsAnnotationOverwrite = "smp.io/dedicated"
+var podAnnotationOnlyDedicated = "smp.io/only-dedicated-nodes"
 
 func init() {
 	corev1.AddToScheme(scheme)
@@ -173,44 +175,39 @@ func admit(ar v1beta1.AdmissionReview, clientset *kubernetes.Clientset) *v1beta1
 func makePatch(pod *corev1.Pod, namespace string, clientset *kubernetes.Clientset) []*operation {
 	ops := []*operation{}
 
-	tolerationCount := len(pod.Spec.Tolerations)
-	if !hasTolerationEffect(pod, corev1.TaintEffectNoExecute) {
-		ops = append(ops, makeTolerationOperation(corev1.TaintEffectNoExecute, namespace, tolerationCount))
-		tolerationCount++
-	}
-	if !hasTolerationEffect(pod, corev1.TaintEffectNoSchedule) {
-		ops = append(ops, makeTolerationOperation(corev1.TaintEffectNoSchedule, namespace, tolerationCount))
-		tolerationCount++
-	}
-
-	_, ok := pod.Spec.NodeSelector[nodeLabelName]
-	if ok {
-		return ops
-	}
-
 	ns, err := clientset.CoreV1().Namespaces().Get(namespace, metav1.GetOptions{})
 	if err != nil {
 		log.Print(err)
 		return ops
 	}
 
-	annotation, ok := ns.Annotations[nsAnnotationOnlyDedicated]
-	if !ok || annotation != "true" {
+	stickTo, ok := ns.Annotations[nsAnnotationOverwrite]
+	if !ok {
+		stickTo = namespace
+	}
+
+	tolerationCount := len(pod.Spec.Tolerations)
+	if !hasTolerationEffect(pod, corev1.TaintEffectNoExecute) {
+		ops = append(ops, makeTolerationOperation(corev1.TaintEffectNoExecute, stickTo, tolerationCount))
+		tolerationCount++
+	}
+	if !hasTolerationEffect(pod, corev1.TaintEffectNoSchedule) {
+		ops = append(ops, makeTolerationOperation(corev1.TaintEffectNoSchedule, stickTo, tolerationCount))
+		tolerationCount++
+	}
+
+	_, ok = pod.Spec.NodeSelector[nodeLabelName]
+	if ok {
 		return ops
 	}
 
-	if len(pod.Spec.NodeSelector) == 0 {
-		ops = append(ops, &operation{
-			Op:    "add",
-			Path:  "/spec/nodeSelector",
-			Value: map[string]string{nodeLabelName: namespace},
-		})
-	} else {
-		ops = append(ops, &operation{
-			Op:    "add",
-			Path:  "/spec/nodeSelector/" + strings.Replace(strings.Replace(nodeLabelName, "~", "~0", -1), "/", "~1", -1),
-			Value: namespace,
-		})
+	nsAnnotation, ok := ns.Annotations[nsAnnotationOnlyDedicated]
+	if ok && nsAnnotation == "true" {
+		ops = append(ops, makeNodeSelectorOperation(pod, stickTo))
+	} else if ok && nsAnnotation == "annotation" {
+		if podAnnotation, ok2 := pod.Annotations[podAnnotationOnlyDedicated]; ok2 && podAnnotation == "true" {
+			ops = append(ops, makeNodeSelectorOperation(pod, stickTo))
+		}
 	}
 
 	return ops
@@ -226,7 +223,7 @@ func hasTolerationEffect(pod *corev1.Pod, effect corev1.TaintEffect) bool {
 	return false
 }
 
-func makeTolerationOperation(effect corev1.TaintEffect, namespace string, position int) *operation {
+func makeTolerationOperation(effect corev1.TaintEffect, value string, position int) *operation {
 	return &operation{
 		Op:   "add",
 		Path: "/spec/tolerations/" + strconv.Itoa(position),
@@ -234,8 +231,24 @@ func makeTolerationOperation(effect corev1.TaintEffect, namespace string, positi
 			Effect:   effect,
 			Key:      nodeTaintKey,
 			Operator: "Equal",
-			Value:    namespace,
+			Value:    value,
 		},
+	}
+}
+
+func makeNodeSelectorOperation(pod *corev1.Pod, value string) *operation {
+	if len(pod.Spec.NodeSelector) == 0 {
+		return &operation{
+			Op:    "add",
+			Path:  "/spec/nodeSelector",
+			Value: map[string]string{nodeLabelName: value},
+		}
+	} else {
+		return &operation{
+			Op:    "add",
+			Path:  "/spec/nodeSelector/" + strings.Replace(strings.Replace(nodeLabelName, "~", "~0", -1), "/", "~1", -1),
+			Value: value,
+		}
 	}
 }
 
