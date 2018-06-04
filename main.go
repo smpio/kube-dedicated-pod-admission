@@ -28,9 +28,9 @@ type operation struct {
 
 var scheme = runtime.NewScheme()
 var codecs = serializer.NewCodecFactory(scheme)
-var taintName string = "smp.io/dedicated"
-var labelName string = "smp.io/dedicated"
-var nsAnnotation string = "smp.io/only-dedicated-nodes"
+var nodeTaintKey = "smp.io/dedicated"
+var nodeLabelName = "smp.io/dedicated"
+var nsAnnotationOnlyDedicated = "smp.io/only-dedicated-nodes"
 
 func init() {
 	corev1.AddToScheme(scheme)
@@ -46,12 +46,17 @@ func main() {
 		"after server cert).")
 	flag.StringVar(&KeyFile, "tls-key-file", KeyFile, ""+
 		"File containing the default x509 private key matching --tls-cert-file.")
-	flag.StringVar(&taintName, "node-taint-key", taintName, ""+
+	flag.StringVar(&nodeTaintKey, "node-taint-key", nodeTaintKey, ""+
 		"Pod tolerations will be created with this key.")
-	flag.StringVar(&labelName, "node-label-name", labelName, ""+
+	flag.StringVar(&nodeLabelName, "node-label-name", nodeLabelName, ""+
 		"This will be used as pod nodeSelector key.")
-	flag.StringVar(&nsAnnotation, "namespace-annotation", nsAnnotation, ""+
+	flag.StringVar(&nsAnnotationOnlyDedicated, "namespace-annotation-only-dedicated", nsAnnotationOnlyDedicated, ""+
 		"Which namespace annotation will be read to force nodeSelector.")
+
+	// for backward compatibility
+	flag.StringVar(&nsAnnotationOnlyDedicated, "namespace-annotation", nsAnnotationOnlyDedicated, ""+
+		"Which namespace annotation will be read to force nodeSelector.")
+
 	flag.Parse()
 
 	http.HandleFunc("/", mkServe(getClient()))
@@ -178,7 +183,7 @@ func makePatch(pod *corev1.Pod, namespace string, clientset *kubernetes.Clientse
 		tolerationCount++
 	}
 
-	_, ok := pod.Spec.NodeSelector[labelName]
+	_, ok := pod.Spec.NodeSelector[nodeLabelName]
 	if ok {
 		return ops
 	}
@@ -189,7 +194,7 @@ func makePatch(pod *corev1.Pod, namespace string, clientset *kubernetes.Clientse
 		return ops
 	}
 
-	annotation, ok := ns.Annotations[nsAnnotation]
+	annotation, ok := ns.Annotations[nsAnnotationOnlyDedicated]
 	if !ok || annotation != "true" {
 		return ops
 	}
@@ -198,12 +203,12 @@ func makePatch(pod *corev1.Pod, namespace string, clientset *kubernetes.Clientse
 		ops = append(ops, &operation{
 			Op:    "add",
 			Path:  "/spec/nodeSelector",
-			Value: map[string]string{labelName: namespace},
+			Value: map[string]string{nodeLabelName: namespace},
 		})
 	} else {
 		ops = append(ops, &operation{
 			Op:    "add",
-			Path:  "/spec/nodeSelector/" + strings.Replace(strings.Replace(labelName, "~", "~0", -1), "/", "~1", -1),
+			Path:  "/spec/nodeSelector/" + strings.Replace(strings.Replace(nodeLabelName, "~", "~0", -1), "/", "~1", -1),
 			Value: namespace,
 		})
 	}
@@ -213,7 +218,7 @@ func makePatch(pod *corev1.Pod, namespace string, clientset *kubernetes.Clientse
 
 func hasTolerationEffect(pod *corev1.Pod, effect corev1.TaintEffect) bool {
 	for _, toleration := range pod.Spec.Tolerations {
-		if toleration.Effect == effect && toleration.Key == taintName {
+		if toleration.Effect == effect && toleration.Key == nodeTaintKey {
 			return true
 		}
 	}
@@ -227,7 +232,7 @@ func makeTolerationOperation(effect corev1.TaintEffect, namespace string, positi
 		Path: "/spec/tolerations/" + strconv.Itoa(position),
 		Value: &corev1.Toleration{
 			Effect:   effect,
-			Key:      taintName,
+			Key:      nodeTaintKey,
 			Operator: "Equal",
 			Value:    namespace,
 		},
