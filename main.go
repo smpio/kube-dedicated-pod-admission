@@ -58,7 +58,7 @@ func main() {
 		"Which namespace annotation will overwrite namespace name.")
 	flag.StringVar(&nsAnnotationOnlyDedicated, "namespace-annotation-only-dedicated", nsAnnotationOnlyDedicated, ""+
 		"Which namespace annotation will be read to force nodeSelector.")
-	flag.StringVar(&podAnnotationOnlyDedicated, "namespace-annotation-only-dedicated", podAnnotationOnlyDedicated, ""+
+	flag.StringVar(&podAnnotationOnlyDedicated, "pod-annotation-only-dedicated", podAnnotationOnlyDedicated, ""+
 		"Which pod annotation will be read to force nodeSelector.")
 
 	flag.Parse()
