@@ -28,11 +28,11 @@ type operation struct {
 
 var scheme = runtime.NewScheme()
 var codecs = serializer.NewCodecFactory(scheme)
-var nodeTaintKey = "smp.io/dedicated"
-var nodeLabelName = "smp.io/dedicated"
-var nsAnnotationOnlyDedicated = "smp.io/only-dedicated-nodes"
-var nsAnnotationOverwrite = "smp.io/dedicated"
-var podAnnotationOnlyDedicated = "smp.io/only-dedicated-nodes"
+var nodeTaintKey = "k8s.smp.io/dedicated"
+var nodeLabelName = "k8s.smp.io/dedicated"
+var nsAnnotationOverwrite = "k8s.smp.io/dedicated"
+var nsAnnotationOnlyDedicated = "k8s.smp.io/only-dedicated-nodes"
+var podAnnotationOnlyDedicated = "k8s.smp.io/only-dedicated-nodes"
 
 func init() {
 	corev1.AddToScheme(scheme)
@@ -48,16 +48,18 @@ func main() {
 		"after server cert).")
 	flag.StringVar(&KeyFile, "tls-key-file", KeyFile, ""+
 		"File containing the default x509 private key matching --tls-cert-file.")
+
 	flag.StringVar(&nodeTaintKey, "node-taint-key", nodeTaintKey, ""+
 		"Pod tolerations will be created with this key.")
 	flag.StringVar(&nodeLabelName, "node-label-name", nodeLabelName, ""+
 		"This will be used as pod nodeSelector key.")
+
+	flag.StringVar(&nsAnnotationOverwrite, "namespace-annotation-overwrite", nsAnnotationOverwrite, ""+
+		"Which namespace annotation will overwrite namespace name.")
 	flag.StringVar(&nsAnnotationOnlyDedicated, "namespace-annotation-only-dedicated", nsAnnotationOnlyDedicated, ""+
 		"Which namespace annotation will be read to force nodeSelector.")
-
-	// for backward compatibility
-	flag.StringVar(&nsAnnotationOnlyDedicated, "namespace-annotation", nsAnnotationOnlyDedicated, ""+
-		"Which namespace annotation will be read to force nodeSelector.")
+	flag.StringVar(&podAnnotationOnlyDedicated, "namespace-annotation-only-dedicated", podAnnotationOnlyDedicated, ""+
+		"Which pod annotation will be read to force nodeSelector.")
 
 	flag.Parse()
 
