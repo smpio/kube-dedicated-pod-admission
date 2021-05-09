@@ -33,6 +33,7 @@ var nodeLabelName = "k8s.smp.io/dedicated"
 var nsAnnotationOverwrite = "k8s.smp.io/dedicated"
 var nsAnnotationOnlyDedicated = "k8s.smp.io/only-dedicated-nodes"
 var podAnnotationOnlyDedicated = "k8s.smp.io/only-dedicated-nodes"
+var ignorePods = make(map[string]string)
 
 func init() {
 	corev1.AddToScheme(scheme)
@@ -42,6 +43,7 @@ func init() {
 func main() {
 	var CertFile string
 	var KeyFile string
+	var IgnorePods string
 
 	flag.StringVar(&CertFile, "tls-cert-file", CertFile, ""+
 		"File containing the default x509 Certificate for HTTPS. (CA cert, if any, concatenated "+
@@ -61,7 +63,15 @@ func main() {
 	flag.StringVar(&podAnnotationOnlyDedicated, "pod-annotation-only-dedicated", podAnnotationOnlyDedicated, ""+
 		"Which pod annotation will be read to force nodeSelector.")
 
+	flag.StringVar(&IgnorePods, "ignore-pods", IgnorePods, ""+
+		"Comma separated list of labels for pods to ignore")
+
 	flag.Parse()
+
+	for _, annotation := range strings.Split(IgnorePods, ",") {
+		kv := strings.SplitN(annotation, "=", 2)
+		ignorePods[kv[0]] = kv[1]
+	}
 
 	http.HandleFunc("/", mkServe(getClient()))
 	server := &http.Server{
@@ -176,6 +186,12 @@ func admit(ar v1beta1.AdmissionReview, clientset *kubernetes.Clientset) *v1beta1
 
 func makePatch(pod *corev1.Pod, namespace string, clientset *kubernetes.Clientset) []*operation {
 	ops := []*operation{}
+
+	for label, value := range ignorePods {
+		if pod.Labels[label] == value {
+			return ops
+		}
+	}
 
 	ns, err := clientset.CoreV1().Namespaces().Get(namespace, metav1.GetOptions{})
 	if err != nil {
