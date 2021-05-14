@@ -2,8 +2,6 @@ FROM golang:1.16 as builder
 
 WORKDIR /go/src/github.com/smpio/kube-dedicated-pod-admission/
 
-RUN curl https://glide.sh/get | sh
-
 COPY go.mod go.sum ./
 RUN go mod download
 
