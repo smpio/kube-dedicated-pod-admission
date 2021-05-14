@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"crypto/tls"
 	"encoding/json"
 	"flag"
@@ -193,7 +194,7 @@ func makePatch(pod *corev1.Pod, namespace string, clientset *kubernetes.Clientse
 		}
 	}
 
-	ns, err := clientset.CoreV1().Namespaces().Get(namespace, metav1.GetOptions{})
+	ns, err := clientset.CoreV1().Namespaces().Get(context.TODO(), namespace, metav1.GetOptions{})
 	if err != nil {
 		log.Print(err)
 		return ops
