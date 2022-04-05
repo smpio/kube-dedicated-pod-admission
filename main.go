@@ -69,9 +69,11 @@ func main() {
 
 	flag.Parse()
 
+	if IgnorePods != "" {
 	for _, annotation := range strings.Split(IgnorePods, ",") {
 		kv := strings.SplitN(annotation, "=", 2)
 		ignorePods[kv[0]] = kv[1]
+	}
 	}
 
 	http.HandleFunc("/", mkServe(getClient()))
@@ -80,7 +82,6 @@ func main() {
 		TLSConfig: configTLS(CertFile, KeyFile),
 	}
 	server.ListenAndServeTLS("", "")
-
 }
 
 func configTLS(CertFile string, KeyFile string) *tls.Config {
